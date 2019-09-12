@@ -1,0 +1,23 @@
+PublicRange:
+    - SubnetID : 178.85.188.0
+      MaskBits : 24
+      Gateway : 178.85.188.1  # WAN Gateway ISP
+      DiscardIP : 
+       - 0.0.0.0
+    - SubnetID : 178.86.27.0
+      MaskBits : 24
+      Gateway : 178.86.27.1  # WAN Gateway ISP
+      DiscardIP : 
+       - 0.0.0.0
+InterfacePublic: eth0   # WAN Interface
+PrivateRange:
+    - SubnetID : 172.25.0.0
+      MaskBits : 23
+      Gateway : 172.25.0.1 # LAN Interface IP
+      DiscardIP :   
+       - 172.25.0.1 # LAN Interface IP
+       - 172.25.0.255  # Discard for lack Public IP
+       - 172.25.1.0    # Discard for lack Public IP
+       - 172.25.1.1    # Discard for lack Public IP
+InterfacePrivate: eth1 # LAN Gateway
+RuleInitNumber : 2
