@@ -28,7 +28,7 @@ InterfacePublic_yaml = new_map['InterfacePublic']
 InterfacePrivate_yaml = new_map['InterfacePrivate']
 RuleInitNumber_yaml = int(new_map['RuleInitNumber'])
 
-# crear rangos privados y públicos disponibles
+# crear rangos públicos disponibles y configuración vyos (interfaces y nat)
 PublicsIP = dict()
 list = 0 # mapping list to id
 
@@ -42,14 +42,11 @@ for subnet in PublicRange_yaml:
     PublicsIP[list]['DiscardIP'] = subnet['DiscardIP'] # guardamos lista de IP,s no usables 
     PublicsIP[list]['Gateway'] = ip2long(subnet['Gateway']) # guardamos lista de IP,s no usables 
     
-
-
 #f = open("commands.txt","w+")
-
 
 ruleNumber = RuleInitNumber_yaml - 1
 
-for i in range (1, list+1): #lo que sea
+for i in range (1, list+1):
     for x in PublicsIP[i]['range']:
         discard = False
         for z in PublicsIP[i]['DiscardIP']:
@@ -60,11 +57,42 @@ for i in range (1, list+1): #lo que sea
         if discard == False:
 #            print (long2ip(x))
             ruleNumber = ruleNumber + 1
-            print ("set interfaces ethernet {} address '{}'" .format(InterfacePublic_yaml, long2ip(x)))
+            print ("set interfaces ethernet {} address '{}/{}'" .format(InterfacePublic_yaml, long2ip(x), PublicsIP[list]['MaskBits']))
             print ("set nat destination rule {} destination address '{}'" .format(ruleNumber, long2ip(x)))
             print ("set nat destination rule {} inbound-interface '{}'" .format(ruleNumber,InterfacePublic_yaml))
             print ("set nat source rule {} outbound-interface '{}'" .format(ruleNumber,InterfacePublic_yaml))
             print ("set nat source rule {} translation address '{}'" .format(ruleNumber, long2ip(x)))
 
+# Creamos rango privado y asociamos IP pública disponible con IP privada (hasta acabar IP,s públicas) y crear configuración vyos
 
+discardLanIP = dict()
+
+for lannet in PrivateRange_yaml:
+    longIPLan = ip2long(lannet['SubnetID']) #creamos el long
+    extremosLan = iprange(longIPLan,lannet['MaskBits']) #entregamos long y mascara
+    rangeLan = range(extremosLan[0]+1,extremosLan[1]) #creamos un array
+    discardLanIP = lannet['DiscardIP'] # guardamos lista de IP,s no usables 
+    gatewayLan = ip2long(lannet['Gateway'])
+    
+ 
+ruleLanNumber = RuleInitNumber_yaml - 1
+
+for r in rangeLan:
+        discard = False
+        for s in discardLanIP:
+            if ip2long(s) == r:
+               discard = True
+        if gatewayLan == r:
+            discard = True
+        if discard == False:
+            ruleLanNumber = ruleLanNumber + 1
+            if ruleLanNumber <= ruleNumber:
+    #            print (long2ip(r))
+                print ("set nat destination rule {} translation address '{}'" .format(ruleLanNumber, long2ip(r)))
+                print ("set nat source rule {} source address '{}'" .format(ruleLanNumber, long2ip(r)))
+
+for i in range (1, list+1):
+    print ("set protocols static route 0.0.0.0/0 netxhop '{}'" .format(long2ip(PublicsIP[i]['Gateway'])))
+
+    
 print ("OK")
