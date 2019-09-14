@@ -30,18 +30,18 @@ RuleInitNumber_yaml = int(new_map['RuleInitNumber'])
 # crear rangos públicos disponibles y configuración vyos (interfaces y nat)
 
 PublicsIP = dict()
-list = 0 # mapping list to id
+listWan = 0 # mapping list to id
 
 for subnet in PublicRange_yaml:
-    list = list + 1
-    PublicsIP[list] = dict()
+    listWan = listWan + 1
+    PublicsIP[listWan] = dict()
     longIP = ip2long(subnet['SubnetID']) #creamos el long
     extremos = iprange(longIP,subnet['MaskBits']) #entregamos long y mascara
-    PublicsIP[list]['range'] = range(extremos[0]+1,extremos[1]) #creamos un array
-    PublicsIP[list]['MaskBits'] = subnet['MaskBits'] # guardamos mascara
-    PublicsIP[list]['DiscardIP'] = subnet['DiscardIP'] # guardamos lista de IP,s no usables 
-    PublicsIP[list]['Gateway'] = ip2long(subnet['Gateway']) # guardamos lista de IP,s no usables 
-    PublicsIP[list]['Interface'] = subnet['Interface'] # guardamos interface subnet pública
+    PublicsIP[listWan]['range'] = range(extremos[0]+1,extremos[1]) #creamos un array
+    PublicsIP[listWan]['MaskBits'] = subnet['MaskBits'] # guardamos mascara
+    PublicsIP[listWan]['DiscardIP'] = subnet['DiscardIP'] # guardamos lista de IP,s no usables 
+    PublicsIP[listWan]['Gateway'] = ip2long(subnet['Gateway']) # guardamos lista de IP,s no usables 
+    PublicsIP[listWan]['Interface'] = subnet['Interface'] # guardamos interface subnet pública
     
 # creamos/sobreescribimos archivo de texto donde se guardarán todos los comandos
     
@@ -51,7 +51,7 @@ f = open("commands.txt","w+")
 
 ruleNumber = RuleInitNumber_yaml - 1
 
-for i in range (1, list+1):
+for i in range (1, listWan+1):
     for x in PublicsIP[i]['range']:
         discard = False
         for z in PublicsIP[i]['DiscardIP']:
@@ -61,42 +61,46 @@ for i in range (1, list+1):
             discard = True
         if discard == False:
             ruleNumber = ruleNumber + 1
-            f.write ("set interfaces ethernet {} address '{}/{}'\n" .format(PublicsIP[list]['Interface'], long2ip(x), PublicsIP[list]['MaskBits']))
+            f.write ("set interfaces ethernet {} address '{}/{}'\n" .format(PublicsIP[i]['Interface'], long2ip(x), PublicsIP[i]['MaskBits']))
             f.write ("set nat destination rule {} destination address '{}'\n" .format(ruleNumber, long2ip(x)))
-            f.write ("set nat destination rule {} inbound-interface '{}'\n" .format(ruleNumber,PublicsIP[list]['Interface']))
-            f.write ("set nat source rule {} outbound-interface '{}'\n" .format(ruleNumber,PublicsIP[list]['Interface']))
+            f.write ("set nat destination rule {} inbound-interface '{}'\n" .format(ruleNumber,PublicsIP[i]['Interface']))
+            f.write ("set nat source rule {} outbound-interface '{}'\n" .format(ruleNumber,PublicsIP[i]['Interface']))
             f.write ("set nat source rule {} translation address '{}'\n" .format(ruleNumber, long2ip(x)))
 
 # Creamos listado IP privadas y asociamos IP pública disponible con IP privada (hasta acabar IP,s públicas) y crear configuración vyos
 
-discardLanIP = dict()
+PrivateIP = dict()
+listLan = 0 # mapping list to id
 
 for lannet in PrivateRange_yaml:
+    listLan = listLan + 1
+    PrivateIP[listLan] = dict()
     longIPLan = ip2long(lannet['SubnetID']) #creamos el long
     extremosLan = iprange(longIPLan,lannet['MaskBits']) #entregamos long y mascara
-    rangeLan = range(extremosLan[0]+1,extremosLan[1]) #creamos un array
-    discardLanIP = lannet['DiscardIP'] # guardamos lista de IP,s no usables 
-    gatewayLan = ip2long(lannet['Gateway'])
+    PrivateIP[listLan]['rangeLan'] = range(extremosLan[0]+1,extremosLan[1]) #creamos un array
+    PrivateIP[listLan]['discardLanIP'] = lannet['DiscardIP'] # guardamos lista de IP,s no usables 
+    PrivateIP[listLan]['gatewayLan'] = ip2long(lannet['Gateway'])
     f.write ("set interfaces ethernet {} address '{}/{}'\n" .format(lannet['Interface'], lannet['Gateway'], lannet['MaskBits']))
     
 ruleLanNumber = RuleInitNumber_yaml - 1
 
-for r in rangeLan:
-        discard = False
-        for s in discardLanIP:
-            if ip2long(s) == r:
-               discard = True
-        if gatewayLan == r:
-            discard = True
-        if discard == False:
-            ruleLanNumber = ruleLanNumber + 1
-            if ruleLanNumber <= ruleNumber:
-                f.write ("set nat destination rule {} translation address '{}'\n" .format(ruleLanNumber, long2ip(r)))
-                f.write ("set nat source rule {} source address '{}'\n" .format(ruleLanNumber, long2ip(r)))
-                
+for i in range (1, listLan+1):
+    for r in PrivateIP[i]['rangeLan']:
+            discard = False
+            for s in PrivateIP[i]['discardLanIP']:
+                if ip2long(s) == r:
+                   discard = True
+            if PrivateIP[i]['gatewayLan'] == r:
+                discard = True
+            if discard == False:
+                ruleLanNumber = ruleLanNumber + 1
+                if ruleLanNumber <= ruleNumber:
+                    f.write ("set nat destination rule {} translation address '{}'\n" .format(ruleLanNumber, long2ip(r)))
+                    f.write ("set nat source rule {} source address '{}'\n" .format(ruleLanNumber, long2ip(r)))
+                    
 # Creamos ruta estática por defecto a las puertas de enlace públicas disponibles
 
-for i in range (1, list+1):
+for i in range (1, listWan+1):
     f.write ("set protocols static route 0.0.0.0/0 next-hop '{}'\n" .format(long2ip(PublicsIP[i]['Gateway'])))
     
 # cerramos archivo y finalizamos.
