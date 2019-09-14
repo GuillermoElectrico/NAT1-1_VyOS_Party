@@ -92,7 +92,7 @@ for r in rangeLan:
                 f.write ("set nat source rule {} source address '{}'\n" .format(ruleLanNumber, long2ip(r)))
 
 for i in range (1, list+1):
-    f.write ("set protocols static route 0.0.0.0/0 netxhop '{}'\n" .format(long2ip(PublicsIP[i]['Gateway'])))
+    f.write ("set protocols static route 0.0.0.0/0 next-hop '{}'\n" .format(long2ip(PublicsIP[i]['Gateway'])))
     
 f.close() 
 
