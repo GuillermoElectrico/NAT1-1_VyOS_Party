@@ -20,6 +20,7 @@ def iprange(ip,mask): #entrega una tupla con la primera y ultima ip del rango
 ############################################################################################
 
 # sacar configuración del yaml
+
 assert path.exists("Settings.yml"), 'Settings file not found: Settings.yml'
 new_map = yaml.load(open("Settings.yml"), Loader=yaml.FullLoader)
 PublicRange_yaml = new_map['PublicRange']
@@ -27,6 +28,7 @@ PrivateRange_yaml = new_map['PrivateRange']
 RuleInitNumber_yaml = int(new_map['RuleInitNumber'])
 
 # crear rangos públicos disponibles y configuración vyos (interfaces y nat)
+
 PublicsIP = dict()
 list = 0 # mapping list to id
 
@@ -41,7 +43,11 @@ for subnet in PublicRange_yaml:
     PublicsIP[list]['Gateway'] = ip2long(subnet['Gateway']) # guardamos lista de IP,s no usables 
     PublicsIP[list]['Interface'] = subnet['Interface'] # guardamos interface subnet pública
     
+# creamos/sobreescribimos archivo de texto donde se guardarán todos los comandos
+    
 f = open("commands.txt","w+")
+
+# Creamos listado IP públicas disponibles y creamos reglas nat.
 
 ruleNumber = RuleInitNumber_yaml - 1
 
@@ -54,7 +60,6 @@ for i in range (1, list+1):
         if PublicsIP[i]['Gateway'] == x:
             discard = True
         if discard == False:
-#            print (long2ip(x))
             ruleNumber = ruleNumber + 1
             f.write ("set interfaces ethernet {} address '{}/{}'\n" .format(PublicsIP[list]['Interface'], long2ip(x), PublicsIP[list]['MaskBits']))
             f.write ("set nat destination rule {} destination address '{}'\n" .format(ruleNumber, long2ip(x)))
@@ -62,7 +67,7 @@ for i in range (1, list+1):
             f.write ("set nat source rule {} outbound-interface '{}'\n" .format(ruleNumber,PublicsIP[list]['Interface']))
             f.write ("set nat source rule {} translation address '{}'\n" .format(ruleNumber, long2ip(x)))
 
-# Creamos rango privado y asociamos IP pública disponible con IP privada (hasta acabar IP,s públicas) y crear configuración vyos
+# Creamos listado IP privadas y asociamos IP pública disponible con IP privada (hasta acabar IP,s públicas) y crear configuración vyos
 
 discardLanIP = dict()
 
@@ -74,7 +79,6 @@ for lannet in PrivateRange_yaml:
     gatewayLan = ip2long(lannet['Gateway'])
     f.write ("set interfaces ethernet {} address '{}/{}'\n" .format(lannet['Interface'], lannet['Gateway'], lannet['MaskBits']))
     
- 
 ruleLanNumber = RuleInitNumber_yaml - 1
 
 for r in rangeLan:
@@ -87,12 +91,15 @@ for r in rangeLan:
         if discard == False:
             ruleLanNumber = ruleLanNumber + 1
             if ruleLanNumber <= ruleNumber:
-    #            print (long2ip(r))
                 f.write ("set nat destination rule {} translation address '{}'\n" .format(ruleLanNumber, long2ip(r)))
                 f.write ("set nat source rule {} source address '{}'\n" .format(ruleLanNumber, long2ip(r)))
+                
+# Creamos ruta estática por defecto a las puertas de enlace públicas disponibles
 
 for i in range (1, list+1):
     f.write ("set protocols static route 0.0.0.0/0 next-hop '{}'\n" .format(long2ip(PublicsIP[i]['Gateway'])))
+    
+# cerramos archivo y finalizamos.
     
 f.close() 
 
